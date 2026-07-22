@@ -1,3 +1,5 @@
+Hey! not6741 here, just wanted to say that all of this is ai generated and vibecoded, this is just a fun project i made for fun because idk i always wanted to build ai into discord but here is the code!
+
 # DeepBot — Discord Bot with 75 LLM Features (DeepSeek)
 
 ## 🚀 Quick Start
