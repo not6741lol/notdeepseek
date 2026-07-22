@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepBot Dashboard</title>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #12121a;
+  --surface2: #1a1a28;
+  --card: #14141e;
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.1);
+  --text: #e8e8f0;
+  --text-dim: #6b6b80;
+  --text-muted: #4a4a5a;
+  --accent: #7c5cfc;
+  --accent2: #06d6a0;
+  --accent3: #ff6b9d;
+  --accent4: #ffd166;
+  --accent-dim: rgba(124,92,252,0.12);
+  --accent-glow: 0 0 40px rgba(124,92,252,0.12);
+  --green: #06d6a0;
+  --red: #ff6b9d;
+  --amber: #ffd166;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { font-size:15px; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh; display: flex;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════ SIDEBAR ═══════ */
+aside {
+  width: 220px; min-width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 20px 12px;
+  z-index: 10;
+  transition: transform var(--transition);
+}
+.logo-area {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 10px 22px;
+}
+.logo-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 1rem; color: #fff;
+}
+.logo-text { font-weight: 700; font-size: 1rem; letter-spacing:-.01em; }
+.logo-text span { color: var(--text-dim); font-weight: 400; font-size: .72rem; }
+
+nav { flex:1; display:flex; flex-direction:column; gap:2px; }
+nav button {
+  all: unset;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  font-size: .84rem; color: var(--text-dim); cursor: pointer;
+  transition: all var(--transition); position: relative;
+  font-weight: 500;
+}
+nav button:hover { background: var(--surface2); color: var(--text); }
+nav button.active {
+  background: var(--accent); color: #fff;
+  box-shadow: 0 4px 16px rgba(124,92,252,0.3);
+}
+nav button .ico { font-size: 1.05rem; width: 24px; text-align: center; }
+nav button .chip {
+  margin-left: auto; background: rgba(124,92,252,0.3); color: var(--accent);
+  font-size: .65rem; padding: 2px 8px; border-radius: 99px;
+  font-weight: 600; min-width: 22px; text-align: center;
+}
+nav button.active .chip { background: rgba(255,255,255,0.2); color: #fff; }
+
+.sidebar-foot {
+  border-top: 1px solid var(--border); padding-top: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.sidebar-foot .user-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  background: var(--surface2); font-size: .78rem;
+}
+.user-row .av {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  flex-shrink: 0;
+}
+
+/* ═══════ MAIN ═══════ */
+main {
+  flex:1; overflow-y:auto; overflow-x:hidden;
+  padding: 28px 32px; display:flex; flex-direction:column; gap:24px;
+}
+main::-webkit-scrollbar { width: 5px; }
+main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+.page { display:none; flex-direction:column; gap:24px; }
+.page.active { display:flex; }
+
+/* Header */
+.page-header {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 12px;
+}
+.page-header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing:-.02em; }
+.page-header h1 em { color: var(--accent); font-style: normal; }
+.actions { display:flex; gap:8px; align-items:center; }
+
+/* Buttons */
+.btn {
+  all:unset; cursor:pointer; font-size:.8rem; font-weight:600;
+  padding: 8px 16px; border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  display:inline-flex; align-items:center; gap:6px;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 12px rgba(124,92,252,0.25); }
+.btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+.btn-ghost { color: var(--text-dim); }
+.btn-ghost:hover { background: var(--surface2); color: var(--text); }
+.btn-sm { padding: 5px 10px; font-size: .72rem; }
+.btn-xs { padding: 3px 8px; font-size: .68rem; border-radius: 6px; }
+
+/* Stat grid */
+.stat-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap:14px; }
+.stat-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  cursor: default;
+}
+.stat-card:hover { border-color: var(--border-hover); box-shadow: var(--accent-glow); }
+.stat-card .lbl {
+  font-size: .68rem; color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: .07em; font-weight: 600;
+}
+.stat-card .val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.8rem; font-weight: 700; margin-top: 4px; letter-spacing: -.02em;
+}
+.stat-card .val.a { color: var(--accent); }
+.stat-card .val.g { color: var(--accent2); }
+.stat-card .val.p { color: var(--accent3); }
+.stat-card .val.y { color: var(--accent4); }
+.stat-card .delta { font-size:.72rem; margin-top:4px; font-weight:500; }
+.delta.up { color: var(--accent2); }
+.delta.down { color: var(--accent3); }
+
+/* Cards */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px;
+}
+.card-hd {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom: 16px;
+}
+.card-hd h2 { font-size: .92rem; font-weight: 600; }
+.card-hd .sub { font-size:.7rem; color: var(--text-dim); }
+
+/* Table */
+.tbl-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:.82rem; }
+th {
+  text-align:left; color: var(--text-dim); font-weight:500;
+  font-size:.68rem; text-transform:uppercase; letter-spacing:.06em;
+  padding: 10px 14px;
+}
+td { padding: 12px 14px; border-top:1px solid var(--border); }
+tr:hover td { background: var(--surface2); }
+
+/* Status dot */
+.dot-status {
+  display:inline-flex; align-items:center; gap:6px; font-size:.8rem;
+}
+.dot-status::before {
+  content:''; width:7px; height:7px; border-radius:50%; flex-shrink:0;
+}
+.dot-status.on::before { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+.dot-status.idle::before { background: var(--accent4); box-shadow: 0 0 6px var(--accent4); }
+.dot-status.off::before { background: var(--accent3); }
+
+/* Toggle */
+.tgl { position:relative; display:inline-block; width:42px; height:24px; }
+.tgl input { display:none; }
+.tgl .track {
+  position:absolute; inset:0; background: var(--border);
+  border-radius: 99px; transition: var(--transition); cursor: pointer;
+}
+.tgl .track::before {
+  content:''; position:absolute; top:3px; left:3px;
+  width:18px; height:18px; background:#fff; border-radius:50%;
+  transition: var(--transition);
+}
+.tgl input:checked + .track { background: var(--accent); }
+.tgl input:checked + .track::before { transform: translateX(18px); }
+
+/* Slider */
+input[type=range] {
+  -webkit-appearance:none; width:100%; height:5px;
+  border-radius:99px; background: var(--border); outline:none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+  background: var(--accent); cursor:pointer; box-shadow:0 0 8px rgba(124,92,252,0.4);
+}
+
+/* Progress bar */
+.prog { height:7px; background:var(--border); border-radius:99px; overflow:hidden; }
+.prog-fill { height:100%; background:var(--accent); border-radius:99px; transition:width .5s ease; }
+
+/* Charts */
+.chart-wrap { position:relative; height:260px; }
+.chart-wrap.short { height:200px; }
+
+/* Command grid */
+.cmd-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px,1fr));
+  gap:10px;
+}
+.cmd-group {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow:hidden;
+  transition: border-color var(--transition);
+}
+.cmd-group:hover { border-color: var(--border-hover); }
+.cmd-group .cmd-grp-hd {
+  display:flex; justify-content:space-between; align-items:center;
+  padding: 16px 18px;
+  background: var(--surface); cursor: pointer;
+  user-select: none;
+}
+.cmd-group .cmd-grp-hd h3 { font-size:.88rem; font-weight:600; }
+.cmd-group .cmd-grp-hd .arr { transition: transform var(--transition); font-size:.7rem; color:var(--text-dim); }
+.cmd-group.open .cmd-grp-hd .arr { transform: rotate(180deg); }
+.cmd-group .cmd-body { display:none; padding: 0 18px 14px; }
+.cmd-group.open .cmd-body { display:block; }
+.cmd-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 8px 0; border-top: 1px solid var(--border);
+  font-size: .8rem;
+}
+.cmd-row .cmd-name { font-family: 'JetBrains Mono', monospace; font-size:.76rem; }
+.cmd-row .cmd-desc { font-size:.72rem; color:var(--text-dim); margin-top:1px; }
+
+/* Tag */
+.tag {
+  display:inline-block; font-size:.62rem; font-weight:600;
+  padding:2px 8px; border-radius:99px;
+  background: var(--accent-dim); color: var(--accent);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+
+/* Log stream */
+.log-box {
+  background: #08080d; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px 18px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: .73rem; line-height: 1.7;
+  max-height: 420px; overflow-y: auto;
+}
+.log-box .ts { color: var(--text-muted); margin-right: 10px; white-space:nowrap; }
+.log-box .w { color: var(--accent4); }
+.log-box .e { color: var(--accent3); }
+
+/* Prompt box */
+.prompt-wrap {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px;
+  display:flex; flex-direction:column; gap:12px;
+}
+.prompt-wrap textarea {
+  width:100%; background: var(--surface2); border:1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); padding:12px;
+  font-family:'Inter',sans-serif; font-size:.82rem; resize:vertical;
+  min-height:72px;
+}
+.prompt-wrap textarea:focus { outline:none; border-color:var(--accent); }
+.prompt-wrap .prompt-meta {
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:.7rem; color:var(--text-dim);
+}
+.prompt-wrap .resp-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 16px;
+  font-size: .82rem; color: var(--text-dim); display:none;
+  max-height: 160px; overflow-y: auto;
+}
+
+/* Settings row */
+.setting-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding: 14px 0; border-top: 1px solid var(--border);
+}
+.setting-row:first-child { border-top:none; }
+.setting-row .set-title { font-weight:600; font-size:.84rem; }
+.setting-row .set-desc { font-size:.7rem; color:var(--text-dim); margin-top:2px; }
+.setting-row input[type=text],
+.setting-row input[type=number],
+.setting-row select {
+  background: var(--surface2); border:1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  padding: 7px 10px; font-family: 'JetBrains Mono', monospace;
+  font-size: .78rem; width: 100px; text-align: center;
+}
+
+/* Bar chart */
+.bar-chart { display:flex; align-items:flex-end; gap:6px; height:100px; }
+.bar-chart .bar {
+  flex:1; background: var(--accent); border-radius: 4px 4px 0 0;
+  transition: height .4s ease; min-width: 8px; opacity:0.8;
+}
+.bar-chart .bar:hover { opacity:1; }
+.bar-labels { display:flex; gap:6px; margin-top:6px; }
+.bar-labels span { flex:1; text-align:center; font-size:.6rem; color:var(--text-muted); }
+
+/* Grid layouts */
+.grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+.grid3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:14px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  aside { position:fixed; left:-220px; height:100%; }
+  aside.open { transform:translateX(220px); }
+  main { padding: 20px 14px; }
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .stat-grid { grid-template-columns: repeat(2,1fr); }
+  .cmd-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<aside id="sidebar">
+  <div class="logo-area">
+    <div class="logo-icon">D</div>
+    <div class="logo-text">DeepBot <span>v3.0</span></div>
+  </div>
+  <nav>
+    <button data-page="overview" class="active">
+      <span class="ico">⊞</span> Overview
+    </button>
+    <button data-page="commands">
+      <span class="ico">⌘</span> Commands
+      <span class="chip" id="cmd-count">75</span>
+    </button>
+    <button data-page="ai">
+      <span class="ico">✦</span> AI Hub
+    </button>
+    <button data-page="analytics">
+      <span class="ico">◷</span> Analytics
+    </button>
+    <button data-page="logs">
+      <span class="ico">☰</span> Live Logs
+      <span class="chip" id="log-count">0</span>
+    </button>
+    <button data-page="settings">
+      <span class="ico">⚙</span> Settings
+    </button>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="user-row">
+      <div class="av"></div>
+      <div>
+        <div style="font-weight:600;font-size:.78rem;" id="bot-tag">DeepBot</div>
+        <div style="font-size:.65rem;color:var(--text-dim);" id="bot-status-line">Loading…</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<main>
+
+<!-- ── OVERVIEW ── -->
+<section class="page active" id="pg-overview">
+  <div class="page-header">
+    <h1>Overview</h1>
+    <div class="actions">
+      <button class="btn btn-ghost btn-sm" onclick="refreshData()">↻ Refresh</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetStats()">⟲ Reset Stats</button>
+    </div>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="lbl">Servers</div>
+      <div class="val a" id="sv-servers">0</div>
+      <div class="delta up" id="sv-servers-delta">Connected guilds</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">Commands Run</div>
+      <div class="val g" id="sv-cmds">0</div>
+      <div class="delta" id="sv-cmds-rate">0 cmd/min</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">API Calls</div>
+      <div class="val p" id="sv-api">0</div>
+      <div class="delta" id="sv-tokens">0 tokens</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">Uptime</div>
+      <div class="val y" id="sv-uptime">0d 0h</div>
+      <div class="delta">Since last restart</div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-hd"><h2>Bot Status</h2><span class="dot-status on" id="bot-status">Online</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:.82rem;">
+        <div style="display:flex;justify-content:space-between;"><span>Tag</span><span id="info-tag">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>ID</span><span style="font-family:'JetBrains Mono',monospace;font-size:.72rem;" id="info-id">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Ping</span><span id="info-ping">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Shards</span><span id="info-shards">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Model</span><span id="info-model">—</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Command Activity — 7 Days</h2></div>
+      <div class="bar-chart" id="daily-bars"></div>
+      <div class="bar-labels" id="daily-labels"></div>
+    </div>
+  </div>
+  <!-- Activity feed -->
+  <div class="card">
+    <div class="card-hd"><h2>Recent Activity</h2><span class="sub">Last 50</span></div>
+    <div id="activity-feed" style="display:flex;flex-direction:column;gap:0;">
+      <div style="text-align:center;padding:28px;color:var(--text-muted);">No activity yet — run some commands!</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── COMMANDS ── -->
+<section class="page" id="pg-commands">
+  <div class="page-header">
+    <h1>Command <em>Registry</em></h1>
+    <div class="actions">
+      <button class="btn btn-ghost btn-sm" onclick="document.querySelectorAll('.cmd-group').forEach(g=>g.classList.toggle('open'))">
+        ⊞ Toggle All
+      </button>
+    </div>
+  </div>
+  <div class="cmd-grid" id="cmd-grid"></div>
+</section>
+
+<!-- ── AI HUB ── -->
+<section class="page" id="pg-ai">
+  <div class="page-header">
+    <h1>AI <em>Hub</em></h1>
+    <div class="actions">
+      <button class="btn btn-ghost btn-sm" id="btn-clear-prompt">Clear</button>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-hd"><h2>Model Configuration</h2></div>
+      <div style="display:flex;flex-direction:column;gap:16px;font-size:.82rem;">
+        <div>
+          <div style="color:var(--text-dim);margin-bottom:5px;">Model</div>
+          <select id="cfg-model" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'Inter',sans-serif;">
+            <option value="deepseek-chat">deepseek-chat</option>
+            <option value="deepseek-reasoner">deepseek-reasoner</option>
+            <option value="claude-opus-4-8">claude-opus-4-8</option>
+            <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
+          </select>
+        </div>
+        <div>
+          <div style="color:var(--text-dim);margin-bottom:5px;">Temperature — <span id="temp-display">0.7</span></div>
+          <input type="range" min="0" max="2" step="0.1" value="0.7" id="cfg-temp" oninput="document.getElementById('temp-display').textContent=this.value">
+        </div>
+        <div>
+          <div style="color:var(--text-dim);margin-bottom:5px;">Max Tokens — <span id="tok-display">2048</span></div>
+          <input type="range" min="256" max="8192" step="256" value="2048" id="cfg-tokens" oninput="document.getElementById('tok-display').textContent=this.value">
+        </div>
+        <div>
+          <div style="color:var(--text-dim);margin-bottom:5px;">Max History</div>
+          <input type="number" value="50" id="cfg-history" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'JetBrains Mono',monospace;">
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>Usage Metrics</h2></div>
+      <div style="display:flex;flex-direction:column;gap:14px;font-size:.82rem;">
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Total Requests</span><span id="mu-reqs">0</span></div>
+          <div class="prog"><div class="prog-fill" id="mu-reqs-bar" style="width:0%"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Tokens Consumed</span><span id="mu-tokens">0</span></div>
+          <div class="prog"><div class="prog-fill" id="mu-tokens-bar" style="width:0%"></div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;"><span>Avg Response</span><span id="mu-avg">—</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Errors</span><span id="mu-errors">0</span></div>
+      </div>
+    </div>
+  </div>
+  <!-- Test prompt -->
+  <div class="prompt-wrap">
+    <div style="font-weight:600;font-size:.88rem;">Quick Test Prompt</div>
+    <textarea id="test-prompt" placeholder="Type something to test the AI model…"></textarea>
+    <div class="prompt-meta">
+      <span>Tokens: ~<span id="prompt-tc">0</span> &nbsp;|&nbsp; Model: <span id="prompt-model">deepseek-chat</span></span>
+      <button class="btn btn-primary btn-sm" onclick="sendTestPrompt()">▶ Send</button>
+    </div>
+    <div class="resp-box" id="prompt-response"></div>
+  </div>
+</section>
+
+<!-- ── ANALYTICS ── -->
+<section class="page" id="pg-analytics">
+  <div class="page-header">
+    <h1>Analytics</h1>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="lbl">Total Commands</div>
+      <div class="val g" id="an-cmds">0</div>
+      <div class="delta up">All time</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">Total API Calls</div>
+      <div class="val p" id="an-api">0</div>
+      <div class="delta">All time</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">Total Errors</div>
+      <div class="val a" id="an-errors">0</div>
+      <div class="delta">All time</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">Commands/Min</div>
+      <div class="val y" id="an-rate">0</div>
+      <div class="delta">Current session</div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-hd"><h2>Commands by Category</h2></div>
+      <div class="chart-wrap">
+        <canvas id="chart-category"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><h2>API Calls Over Time</h2></div>
+      <div class="chart-wrap">
+        <canvas id="chart-api"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h2>Top Commands</h2></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Feature</th><th>Category</th><th>Count</th><th>Share</th></tr></thead>
+        <tbody id="top-cmds-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── LOGS ── -->
+<section class="page" id="pg-logs">
+  <div class="page-header">
+    <h1>Live <em>Logs</em></h1>
+    <div class="actions">
+      <select id="log-level-filter" onchange="applyLogFilter()" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.76rem;font-family:'Inter',sans-serif;">
+        <option value="all">All Levels</option>
+        <option value="info">Info</option>
+        <option value="warn">Warning</option>
+        <option value="error">Error</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="clearLogView()">Clear View</button>
+    </div>
+  </div>
+  <div class="log-box" id="log-box"></div>
+</section>
+
+<!-- ── SETTINGS ── -->
+<section class="page" id="pg-settings">
+  <div class="page-header">
+    <h1>Settings</h1>
+    <div class="actions">
+      <button class="btn btn-primary btn-sm" onclick="saveSettings()">💾 Save</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h2>Bot Behavior</h2></div>
+    <div class="setting-row">
+      <div><div class="set-title">Command Prefix</div><div class="set-desc">The prefix users type before commands</div></div>
+      <input type="text" value="!" id="set-prefix">
+    </div>
+    <div class="setting-row">
+      <div><div class="set-title">Auto-reply to Mentions</div><div class="set-desc">Reply when the bot is @mentioned</div></div>
+      <label class="tgl"><input type="checkbox" id="set-mention" checked><span class="track"></span></label>
+    </div>
+    <div class="setting-row">
+      <div><div class="set-title">Log Direct Messages</div><div class="set-desc">Log DM conversations to the dashboard</div></div>
+      <label class="tgl"><input type="checkbox" id="set-logdm"><span class="track"></span></label>
+    </div>
+    <div class="setting-row">
+      <div><div class="set-title">Debug Mode</div><div class="set-desc">Enable verbose logging output</div></div>
+      <label class="tgl"><input type="checkbox" id="set-debug"><span class="track"></span></label>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h2>AI Behavior</h2></div>
+    <div class="setting-row">
+      <div><div class="set-title">Context Memory</div><div class="set-desc">Number of messages kept in conversation history</div></div>
+      <input type="number" value="50" id="set-history">
+    </div>
+    <div class="setting-row">
+      <div><div class="set-title">Thinking Indicator</div><div class="set-desc">Show typing indicator during AI generation</div></div>
+      <label class="tgl"><input type="checkbox" id="set-thinking" checked><span class="track"></span></label>
+    </div>
+    <div class="setting-row">
+      <div><div class="set-title">NSFW Content Filter</div><div class="set-desc">Block NSFW content in AI responses</div></div>
+      <label class="tgl"><input type="checkbox" id="set-nsfw" checked><span class="track"></span></label>
+    </div>
+    <div class="setting-row">
+      <div><div class="set-title">Response Color</div><div class="set-desc">Embed accent color (hex)</div></div>
+      <input type="text" value="#7c5cfc" id="set-color">
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ═══════════════ SCRIPTS ═══════════════ -->
+<script>
+// ── Page navigation ──
+const pages = {};
+document.querySelectorAll('.page').forEach(p => pages[p.id.replace('pg-','')] = p);
+document.querySelectorAll('nav button[data-page]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('pg-' + btn.dataset.page).classList.add('active');
+    if (btn.dataset.page === 'analytics') resizeCharts();
+  });
+});
+
+// ── Socket.IO ──
+const socket = io();
+let categoryChart = null, apiChart = null;
+let apiHistory = Array(30).fill(0);
+let allLogs = [];
+
+const CAT_COLORS = {
+  chat: '#7c5cfc', generate: '#06d6a0', code: '#ff6b9d',
+  analyze: '#ffd166', creative: '#b088ff', learn: '#4ae0b8',
+  utility: '#ff8db5', special: '#ffde7a', help: '#8899aa',
+  bible: '#c9a87c',
+};
+const CATS = Object.keys(CAT_COLORS);
+
+function initCharts() {
+  const cctx = document.getElementById('chart-category')?.getContext('2d');
+  if (cctx) {
+    categoryChart = new Chart(cctx, {
+      type: 'doughnut',
+      data: {
+        labels: CATS.map(c => c.charAt(0).toUpperCase() + c.slice(1)),
+        datasets: [{
+          data: CATS.map(() => 0),
+          backgroundColor: CATS.map(c => CAT_COLORS[c]),
+          borderWidth: 0, hoverOffset: 6,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { color: '#6b6b80', font: { family: 'Inter', size: 10 }, boxWidth: 8, padding: 10 },
+          },
+        },
+      },
+    });
+  }
+
+  const actx = document.getElementById('chart-api')?.getContext('2d');
+  if (actx) {
+    apiChart = new Chart(actx, {
+      type: 'line',
+      data: {
+        labels: Array(30).fill('').map((_,i) => `-${29-i}s`),
+        datasets: [{
+          data: apiHistory,
+          borderColor: '#7c5cfc',
+          backgroundColor: 'rgba(124,92,252,0.06)',
+          fill: true, tension: 0.4,
+          pointRadius: 0, borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#4a4a5a', font: { size: 8 }, maxTicksLimit: 10 } },
+          y: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#4a4a5a', font: { size: 8 }, stepSize: 1 }, beginAtZero: true },
+        },
+      },
+    });
+  }
+}
+
+function resizeCharts() {
+  setTimeout(() => {
+    if (categoryChart) categoryChart.resize();
+    if (apiChart) apiChart.resize();
+  }, 100);
+}
+
+// ── Update all UI from stats payload ──
+function updateUI(data) {
+  if (!data) return;
+
+  // Sidebar bot info
+  document.getElementById('bot-tag').textContent = data.bot?.tag || 'DeepBot';
+  const status = data.bot?.status || 'offline';
+  const statusLine = document.getElementById('bot-status-line');
+  statusLine.textContent = status === 'online' ? '● Online' : status === 'idle' ? '◐ Idle' : '○ Offline';
+  statusLine.style.color = status === 'online' ? 'var(--accent2)' : status === 'idle' ? 'var(--accent4)' : 'var(--accent3)';
+
+  // Overview stat cards
+  document.getElementById('sv-servers').textContent = data.bot?.servers ?? 0;
+  document.getElementById('sv-cmds').textContent = (data.commandsExecuted || 0).toLocaleString();
+  document.getElementById('sv-api').textContent = (data.totalApiCalls || 0).toLocaleString();
+  document.getElementById('sv-uptime').textContent = data.uptimeFormatted || '0d 0h 0m';
+  document.getElementById('sv-cmds-rate').textContent = `${data.commandsPerMinute || 0} cmd/min`;
+  document.getElementById('sv-tokens').textContent = `${(data.totalTokensUsed || 0).toLocaleString()} tokens`;
+
+  // Bot status card
+  document.getElementById('bot-status').textContent = status === 'online' ? 'Online' : status === 'idle' ? 'Idle' : 'Offline';
+  document.getElementById('bot-status').className = 'dot-status ' + (status === 'online' ? 'on' : status === 'idle' ? 'idle' : 'off');
+  document.getElementById('info-tag').textContent = data.bot?.tag || '—';
+  document.getElementById('info-id').textContent = data.bot?.id || '—';
+  document.getElementById('info-ping').textContent = data.bot?.ping != null ? `${data.bot.ping}ms` : '—';
+  document.getElementById('info-shards').textContent = data.bot?.shards ?? '—';
+  document.getElementById('info-model').textContent = data.config?.model || '—';
+
+  // Daily bar chart
+  if (data.dailyCommandSeries && data.dailyLabels) {
+    const barDiv = document.getElementById('daily-bars');
+    const lblDiv = document.getElementById('daily-labels');
+    const max = Math.max(...data.dailyCommandSeries, 1);
+    barDiv.innerHTML = data.dailyCommandSeries.map(v =>
+      `<div class="bar" style="height:${(v/max*100)}%" title="${v} commands"></div>`
+    ).join('');
+    lblDiv.innerHTML = data.dailyLabels.map(l => `<span>${l}</span>`).join('');
+  }
+
+  // Activity feed
+  const feed = document.getElementById('activity-feed');
+  if (data.recentActivity && data.recentActivity.length) {
+    feed.innerHTML = data.recentActivity.slice(0, 20).map(a => {
+      const cat = a.category || 'chat';
+      const time = new Date(a.timestamp).toLocaleTimeString();
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.8rem;">
+        <span class="tag" style="background:${CAT_COLORS[cat] || '#555'}20;color:${CAT_COLORS[cat] || '#aaa'};">${cat}</span>
+        <span style="flex:1;">/${a.feature || a.command}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:.66rem;color:var(--text-muted);">${time}</span>
+      </div>`;
+    }).join('');
+  } else {
+    feed.innerHTML = '<div style="text-align:center;padding:28px;color:var(--text-muted);">No activity yet — run some commands!</div>';
+  }
+
+  // Analytics page
+  document.getElementById('an-cmds').textContent = (data.commandsExecuted || 0).toLocaleString();
+  document.getElementById('an-api').textContent = (data.totalApiCalls || 0).toLocaleString();
+  document.getElementById('an-errors').textContent = (data.errors || 0).toLocaleString();
+  document.getElementById('an-rate').textContent = data.commandsPerMinute || '0';
+
+  // Category chart
+  if (categoryChart) {
+    categoryChart.data.datasets[0].data = CATS.map(c => data.commandsByCategory?.[c] || 0);
+    categoryChart.update('none');
+  }
+
+  // API chart
+  apiHistory.push(data.totalApiCalls || 0);
+  if (apiHistory.length > 30) apiHistory.shift();
+  if (apiChart) {
+    apiChart.data.datasets[0].data = apiHistory;
+    apiChart.update('none');
+  }
+
+  // Top commands table
+  const topBody = document.getElementById('top-cmds-body');
+  if (data.commandsByFeature) {
+    const sorted = Object.entries(data.commandsByFeature)
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 10);
+    const total = sorted.reduce((s, [,c]) => s + c, 1);
+    topBody.innerHTML = sorted.map(([name, count]) => {
+      const cat = Object.entries(data.commandsByCategory || {}).find(([c]) =>
+        Object.keys(CAT_COLORS).includes(c)
+      )?.[0] || 'chat';
+      return `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:.76rem;">/${name}</td>
+        <td><span class="tag" style="background:${CAT_COLORS[cat]||'#555'}20;color:${CAT_COLORS[cat]||'#aaa'};">${cat}</span></td>
+        <td>${count.toLocaleString()}</td>
+        <td>${(count/total*100).toFixed(1)}%</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // AI Hub usage
+  document.getElementById('mu-reqs').textContent = (data.totalApiCalls || 0).toLocaleString();
+  document.getElementById('mu-tokens').textContent = (data.totalTokensUsed || 0).toLocaleString();
+  document.getElementById('mu-errors').textContent = data.errors || 0;
+  document.getElementById('mu-reqs-bar').style.width = Math.min((data.totalApiCalls || 0) / 500 * 100, 100) + '%';
+  document.getElementById('mu-tokens-bar').style.width = Math.min((data.totalTokensUsed || 0) / 500000 * 100, 100) + '%';
+
+  // Log count chip
+  document.getElementById('log-count').textContent = data.logBuffer?.length || 0;
+}
+
+// ── Socket events ──
+socket.on('stats', updateUI);
+
+socket.on('log_entries', (entries) => {
+  if (!entries || !entries.length) return;
+  allLogs = [...entries, ...allLogs].slice(0, 300);
+  renderLogs();
+});
+
+// ── Log rendering ──
+function renderLogs() {
+  const box = document.getElementById('log-box');
+  const filter = document.getElementById('log-level-filter')?.value || 'all';
+  const filtered = filter === 'all' ? allLogs : allLogs.filter(l => l.level === filter);
+  box.innerHTML = filtered.slice(0, 80).map(l => {
+    const ts = new Date(l.ts).toISOString().slice(11, 23);
+    const cls = l.level === 'warn' ? 'w' : l.level === 'error' ? 'e' : '';
+    return `<div><span class="ts">${ts}</span><span class="${cls}">${l.level.toUpperCase().padEnd(5)}</span> ${escHtml(l.message)}</div>`;
+  }).join('');
+}
+
+function applyLogFilter() { renderLogs(); }
+function clearLogView() { allLogs = []; renderLogs(); }
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ── Refresh / Reset ──
+function refreshData() {
+  fetch('/api/stats').then(r => r.json()).then(updateUI).catch(() => {});
+  socket.emit('get_stats');
+}
+
+function resetStats() {
+  if (!confirm('Reset all session stats to zero?')) return;
+  fetch('/api/stats', { method: 'DELETE' }).catch(() => {});
+  refreshData();
+}
+
+// ── Test prompt ──
+document.getElementById('test-prompt')?.addEventListener('input', function() {
+  document.getElementById('prompt-tc').textContent = Math.ceil(this.value.length / 4);
+});
+
+async function sendTestPrompt() {
+  const ta = document.getElementById('test-prompt');
+  const resp = document.getElementById('prompt-response');
+  if (!ta.value.trim()) return;
+  resp.style.display = 'block';
+  resp.textContent = '✦ Sending to model…';
+  try {
+    const r = await fetch('/api/test-prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: ta.value }),
+    });
+    const data = await r.json();
+    if (data.error) { resp.textContent = '⚠ ' + data.error; return; }
+    resp.textContent = data.response;
+  } catch (e) {
+    resp.textContent = '⚠ Connection error: ' + e.message;
+  }
+}
+
+document.getElementById('btn-clear-prompt')?.addEventListener('click', () => {
+  document.getElementById('test-prompt').value = '';
+  document.getElementById('prompt-response').style.display = 'none';
+  document.getElementById('prompt-tc').textContent = '0';
+});
+
+// ── Save settings ──
+function saveSettings() {
+  const settings = {
+    prefix: document.getElementById('set-prefix')?.value,
+    mentionReply: document.getElementById('set-mention')?.checked,
+    logDMs: document.getElementById('set-logdm')?.checked,
+    debug: document.getElementById('set-debug')?.checked,
+    maxHistory: parseInt(document.getElementById('set-history')?.value) || 50,
+    thinking: document.getElementById('set-thinking')?.checked,
+    nsfw: document.getElementById('set-nsfw')?.checked,
+    color: document.getElementById('set-color')?.value,
+  };
+  console.log('Settings saved:', settings);
+  // Flash feedback
+  const btn = document.querySelector('#pg-settings .btn-primary');
+  btn.textContent = '✓ Saved!';
+  setTimeout(() => btn.textContent = '💾 Save', 1500);
+}
+
+// ── Build command grid ──
+function buildCommandGrid(commands) {
+  const grid = document.getElementById('cmd-grid');
+  if (!grid) return;
+  grid.innerHTML = commands.map((cmd, i) => `
+    <div class="cmd-group ${i === 0 ? 'open' : ''}">
+      <div class="cmd-grp-hd" onclick="this.parentElement.classList.toggle('open')">
+        <div>
+          <h3>/${cmd.name}</h3>
+          <div style="font-size:.7rem;color:var(--text-dim);margin-top:2px;">${cmd.description}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="tag">${cmd.subcommands.length} subs</span>
+          <span class="arr">▾</span>
+        </div>
+      </div>
+      <div class="cmd-body">
+        ${cmd.subcommands.map(s => `
+          <div class="cmd-row">
+            <div>
+              <div class="cmd-name">/${cmd.name} <strong>${s.name}</strong></div>
+              <div class="cmd-desc">${s.description}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Init ──
+initCharts();
+
+// Load commands from API
+fetch('/api/commands')
+  .then(r => r.json())
+  .then(cmds => {
+    buildCommandGrid(cmds);
+    const total = cmds.reduce((s, c) => s + c.subcommands.length, 0);
+    document.getElementById('cmd-count').textContent = total;
+  })
+  .catch(() => {
+    // Fallback
+    document.getElementById('cmd-grid').innerHTML =
+      '<div style="text-align:center;padding:40px;color:var(--text-muted);">Could not load command registry.</div>';
+  });
+
+// Initial stats fetch
+fetch('/api/stats')
+  .then(r => r.json())
+  .then(data => {
+    updateUI(data);
+    if (data.logBuffer) {
+      allLogs = [...data.logBuffer];
+      renderLogs();
+    }
+  })
+  .catch(() => {});
+
+// Periodic reconnect check
+setInterval(() => {
+  if (!socket.connected) socket.connect();
+}, 5000);
+</script>
+</body>
+</html>
