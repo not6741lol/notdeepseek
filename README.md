@@ -78,3 +78,7 @@ When the bot starts, a web dashboard is available at **http://localhost:3000**
 │   └── deploy-commands.js # Register 76 commands
 └── .env                  # Your tokens
 ```
+
+---
+
+<sub>Made by **not**. More projects and build notes: **[not6741.lol](https://not6741.lol/)**</sub>
