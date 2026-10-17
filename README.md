@@ -1,5 +1,14 @@
 # DeepBot — Discord Bot with 75 LLM Features (DeepSeek)
 
+[![version](https://img.shields.io/badge/version-3.0.0-blue)](package.json)
+[![Made with JavaScript](https://img.shields.io/badge/Made%20with-JavaScript-yellow?logo=javascript&logoColor=white)](https://developer.mozilla.org/docs/Web/JavaScript)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![license](https://img.shields.io/github/license/not6741lol/notdeepseek?color=blue)](LICENSE)
+
+> [!NOTE]
+> This project was made by **not6741** with the help of **DeepSeek**, written in **JavaScript**.
+> It uses the **MIT license** and is **fully FOSS** (free and open-source software).
+
 Hey! not6741 here, just wanted to say that all of this is ai generated and vibecoded, this is just a fun project i made for fun because idk i always wanted to build ai into discord but here is the code!
 
 ## 🚀 Quick Start
